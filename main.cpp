@@ -306,7 +306,7 @@ int main(void)
                 float g = 1.0f;
                 float h = Manhattan(cell, goal);
 
-                // Late task 2:
+                // Late task 2:  DONE
                 // Upgrade this by switching between manhattan and euclidean if you have yet to hand in lab exercise 4
                 // Also consider building a static grid representation where each tile stores its neighbours
                 DrawTile(cell, map);
@@ -330,16 +330,18 @@ int main(void)
 
         rlImGuiBegin();
 
-        // DONE: Late task 3: Upgrade GUI to recompute the path when start and end change
+        // DONE: 
+        // Late task 3: Upgrade GUI to recompute the path when start and end change
+        
         
         if (ImGui::Button("Find path") 
             || (ImGui::SliderInt2("Start", &start.col, 0, TILE_COUNT - 1)) 
                 || (ImGui::SliderInt2("Goal", &goal.col, 0, TILE_COUNT - 1))
-            )
+                    || (ImGui::Checkbox("Toggle Manhattan/ Euclidean", &manhattan))
+        )        
         {
-            path = FindPath(start, goal, map, ImGui::Checkbox("Toggle Manhattan", &manhattan));
-        }
-
+            path = FindPath(start, goal, map, manhattan);
+        } 
         
         rlImGuiEnd();
 
