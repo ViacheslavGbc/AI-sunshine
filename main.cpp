@@ -296,7 +296,7 @@ int main(void)
 
         BeginDrawing();
         ClearBackground(RAYWHITE);
-        
+
         for (int row = 0; row < TILE_COUNT; row++)
         {
             for (int col = 0; col < TILE_COUNT; col++)
@@ -330,16 +330,17 @@ int main(void)
 
         rlImGuiBegin();
 
-        // Late task 3:
-        // Upgrade GUI to recompute the path when start and end change
-        if (ImGui::Button("Find path"))
+        // DONE: Late task 3: Upgrade GUI to recompute the path when start and end change
+        
+        if (ImGui::Button("Find path") 
+            || (ImGui::SliderInt2("Start", &start.col, 0, TILE_COUNT - 1)) 
+                || (ImGui::SliderInt2("Goal", &goal.col, 0, TILE_COUNT - 1))
+            )
         {
-            path = FindPath(start, goal, map, true);
+            path = FindPath(start, goal, map, ImGui::Checkbox("Toggle Manhattan", &manhattan));
         }
 
-        ImGui::SliderInt2("Start", &start.col, 0, TILE_COUNT - 1);
-        ImGui::SliderInt2("Goal", &goal.col, 0, TILE_COUNT - 1);
-        ImGui::Checkbox("Toggle Manhattan", &manhattan);
+        
         rlImGuiEnd();
 
         EndDrawing();
