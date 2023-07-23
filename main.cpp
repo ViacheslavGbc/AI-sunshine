@@ -10,6 +10,8 @@ using namespace std;
 constexpr float TILE_WIDTH = SCREEN_WIDTH / (float)TILE_COUNT;
 constexpr float TILE_HEIGHT = SCREEN_HEIGHT / (float)TILE_COUNT;
 
+using Map = array<array<size_t, TILE_COUNT>, TILE_COUNT>;
+
 enum TileType : size_t
 {
     MOUNTAIN,
@@ -26,6 +28,11 @@ struct Cell
     int row = -1;
 };
 
+float Euclidean(Cell a, Cell b)
+{
+    return sqrtf(powf(b.col - a.col, 2.0f) + powf(b.row - a.row, 2.0f));
+}
+
 Cell ScreenToTile(Vector2 position)
 {
     return { int(position.x / TILE_WIDTH), int(position.y / TILE_HEIGHT) };
@@ -39,6 +46,25 @@ Vector2 TileToScreen(Cell cell)
 Vector2 TileCenter(Cell cell)
 {
     return TileToScreen(cell) + Vector2{ TILE_WIDTH * 0.5f, TILE_HEIGHT * 0.5f };
+}
+
+size_t Index(Cell cell)
+{
+    return cell.row * TILE_COUNT + cell.col;
+}
+
+float Cost(TileType type)
+{
+    static array<float, COUNT> costs
+    {
+        0.0f,   // AIR
+        10.0f,  // GRASS
+        25.0f,  // WATER
+        50.0f,  // MUD
+        100.0f, // MOUNTAIN
+    };
+
+    return costs[type];
 }
 
 void DrawTile(Cell cell, Color color)
