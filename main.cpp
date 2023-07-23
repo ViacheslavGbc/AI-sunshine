@@ -1,6 +1,8 @@
 #include "rlImGui.h"
 #include "Math.h"
 #include <array>
+#include <vector>
+#include <queue>
 #define SCREEN_WIDTH 1280
 #define SCREEN_HEIGHT 720
 #define TILE_COUNT 10
@@ -57,15 +59,147 @@ float Cost(TileType type)
 {
     static array<float, COUNT> costs
     {
-        0.0f,   // AIR
-        10.0f,  // GRASS
-        25.0f,  // WATER
-        50.0f,  // MUD
         100.0f, // MOUNTAIN
+        50.0f,  // MUD
+        25.0f,  // WATER
+        10.0f,  // GRASS
+        0.0f,   // AIR
     };
 
     return costs[type];
 }
+
+vector<Cell> Neighbours(Cell cell)
+{
+    vector<Cell> neighbours;
+    for (int row = -1; row <= 1; row++)
+    {
+        for (int col = -1; col <= 1; col++)
+        {
+            // Don't add the passed-in cell to the list
+            if (row == cell.row && col == cell.col) continue;
+
+            Cell neighbour{ cell.col + col, cell.row + row };
+            if (neighbour.col >= 0 && neighbour.col < TILE_COUNT &&
+                neighbour.row >= 0 && neighbour.row < TILE_COUNT)
+                neighbours.push_back(neighbour);
+        }
+    }
+    return neighbours;
+}
+
+
+struct Node
+{
+    Node()
+    {
+        Init();
+    }
+
+    Node(Cell cell)
+    {
+        Init(cell);
+    }
+
+    Node(Cell cell, float g, float h)
+    {
+        Init(cell, {}, g, h);
+    }
+
+    Node(Cell cell, Cell parent, float g, float h)
+    {
+        Init(cell, parent, g, h);
+    }
+
+    void Init(Cell cell = {}, Cell parent = {}, float g = 0.0f, float h = 0.0f)
+    {
+        this->cell = cell;
+        this->parent = parent;
+        this->g = g;
+        this->h = h;
+    }
+
+    float F() { return g + h; }
+
+    float g;
+    float h;
+
+    Cell cell;
+    Cell parent;
+};
+
+bool operator==(Cell a, Cell b)
+{
+    return a.row == b.row && a.col == b.col;
+}
+
+bool Compare(Node a, Node b)
+{
+    return a.F() > b.F();
+}
+
+vector<Cell> FindPath(Cell start, Cell end, Map map, bool manhattan)
+{
+    // 1:1 mapping of graph nodes to tile map
+    const int nodeCount = TILE_COUNT * TILE_COUNT;
+    vector<Node> tileNodes(nodeCount);
+    vector<bool> closedList(nodeCount, false);
+    priority_queue<Node, vector<Node>, decltype(&Compare)> openList(Compare);
+    tileNodes[Index(start)].parent = start;
+    openList.push(start);
+
+    // Loop until we've reached the goal, or explored every tile
+    while (!openList.empty())
+    {
+        const Cell currentCell = openList.top().cell;
+
+        // Stop exploring once we've found the goal
+        if (currentCell == end)
+            break;
+
+        // Otherwise, add current cell to closed list and update g & h values of its neighbours
+        openList.pop();
+        closedList[Index(currentCell)] = true;
+
+        float gNew, hNew;
+        for (const Cell& neighbour : Neighbours(currentCell))
+        {
+            const size_t neighbourIndex = Index(neighbour);
+
+            // Skip if already explored
+            if (closedList[neighbourIndex]) continue;
+
+            // Calculate scores
+            gNew = Euclidean(currentCell, neighbour);   // Distance from current to adjacent
+            hNew = Euclidean(neighbour, end);                   // Distance from adjacent to goal
+            hNew += Cost((TileType)map[neighbour.row][neighbour.col]);
+
+            // Append if unvisited or best score
+            if (tileNodes[neighbourIndex].F() <= FLT_EPSILON /*unexplored*/ ||
+                gNew + hNew < tileNodes[neighbourIndex].F() /*better score*/)
+            {
+                openList.push({ neighbour, gNew, hNew });
+                tileNodes[neighbourIndex] = { neighbour, currentCell, gNew, hNew };
+            }
+        }
+    }
+
+    vector<Cell> path;
+    Cell currentCell = end;
+    size_t currentIndex = Index(currentCell);
+
+    while (!(tileNodes[currentIndex].parent == currentCell))
+    {
+        path.push_back(currentCell);
+        currentCell = tileNodes[currentIndex].parent;
+        currentIndex = Index(currentCell);
+    }
+    path.push_back(start);
+    reverse(path.begin(), path.end());
+
+    return path;
+}
+
 
 void DrawTile(Cell cell, Color color)
 {
@@ -98,12 +232,25 @@ void DrawTile(Cell cell, TileType type)
     DrawTile(cell, color);
 }
 
+void DrawTile(Cell cell, Map map)
+{
+    DrawTile(cell, (TileType)map[cell.row][cell.col]);
+}
+
+struct Tile
+{
+    // Store neighbours (4 directions + diagonals)
+    array<Tile*, 8> neighbours;
+    float g;
+    float h;
+};
+
 int main(void)
 {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Sunshine");
     SetTargetFPS(60);
 
-    array<array<size_t, TILE_COUNT>, TILE_COUNT> tiles
+    Map map
     {
         array<size_t, TILE_COUNT>{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
         array<size_t, TILE_COUNT>{ 0, 3, 3, 1, 1, 1, 4, 4, 4, 0 },
@@ -119,6 +266,9 @@ int main(void)
 
     Cell start{ 1, 1 };
     Cell goal{ 8, 8 };
+
+    bool manhattan = true;
+    vector<Cell> path = FindPath(start, goal, map, manhattan);
 
     while (!WindowShouldClose())
     {
