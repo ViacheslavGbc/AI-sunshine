@@ -279,12 +279,24 @@ int main(void)
         {
             for (int col = 0; col < TILE_COUNT; col++)
             {
+                Cell cell{ col, row };
+                float g = Euclidean(cell, goal);
+                float h = Euclidean(cell, goal);
                 // TODO -- calculate cost of each tile to the goal tile
-                DrawTile({ col, row }, (TileType)tiles[row][col]);
-                Vector2 texPos = TileCenter({ col, row });
-                DrawText("69", texPos.x, texPos.y, 10, MAROON);
+                DrawTile(cell, map);
+                Vector2 texPos = TileCenter(cell);
+                DrawText(TextFormat("F: %f", g + h), texPos.x, texPos.y, 10, MAROON);
             }
         }
+
+        Vector2 cursor = GetMousePosition();
+        Cell cursorTile = ScreenToTile(cursor);
+
+        for (const Cell& cell : path)
+            DrawTile(cell, RED);
+
+        path = FindPath(start, cursorTile, map, manhattan);
+
         DrawTile(ScreenToTile(GetMousePosition()), RED);
         DrawTile(start, DARKBLUE);
         DrawTile(goal, SKYBLUE);
